@@ -1,0 +1,26 @@
+{
+  "compileOnSave": false,
+  "compilerOptions": {
+    "rootDir": ".",
+    "sourceMap": true,
+    "declaration": false,
+    "moduleResolution": "node",
+    "emitDecoratorMetadata": true,
+    "experimentalDecorators": true,
+    "importHelpers": true,
+    "target": "es2015",
+    "module": "esnext",
+    "lib": ["es2017", "dom"],
+    "skipLibCheck": true,
+    "skipDefaultLibCheck": true,
+    "baseUrl": ".",
+    "paths": {
+      "@cms-demo/database": ["libs/database/src/index.ts"],
+      "@cms-demo/jwt": ["libs/jwt/src/index.ts"],
+      "@cms-demo/types": ["libs/types/src/index.ts"],
+      "@config": ["libs/config/src/index.ts"],
+      "@models/*": ["libs/database/src/lib/models/*"]
+    }
+  },
+  "exclude": ["node_modules", "tmp"]
+}
