@@ -7,9 +7,7 @@ import { APPLICATION_NAME } from '../common/constants/user.constant';
 
 @Module({
   imports: [
-    SequelizeModule.forFeature([], APPLICATION_NAME),
-    UsersModule,
-   
+    SequelizeModule.forFeature([], APPLICATION_NAME)
   ],
   controllers: [AuthController],
   providers: [AuthService],

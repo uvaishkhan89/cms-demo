@@ -7,6 +7,7 @@ import * as fs from 'fs';
 import { join } from 'path';
 import { InjectModel } from '@nestjs/sequelize';
 import { UpdateFileDto } from './dto/update-file.dto';
+import { Storage } from '@google-cloud/storage';
 import { S3Client, DeleteObjectCommand, ListObjectsCommand, ListObjectsV2Command } from '@aws-sdk/client-s3';
  
 
@@ -23,6 +24,30 @@ export class FileService {
       secretAccessKey: this.config.get('S3_SECRET_ACCESS_KEY'),
       region: this.config.get('S3_REGION')
     });
+  }
+
+  gcpBucket() {
+    return new Storage({
+      projectId: this.config.get('GCP_PROJECT_ID'),
+      credentials: {
+        client_email: this.config.get('GCP_CLIENT_EMAIL'),
+        private_key: this.config.get('GCP_PRIVATE_KEY')
+      }
+    });
+  }
+
+  async uploadFile(buffer, name) {
+    const filePath = this.config.get('FILES_PATH');
+    const current_os = this.config.get('CURRENT_OS');    
+    const path = join(filePath, name);   
+    const parts=current_os=='Linux'? path.split('/'):path.split('\\')    
+    parts.pop();
+    const dir=current_os=='Linux'? parts.join('/'):parts.join('\\')      
+    if (!fs.existsSync(dir)) {
+      fs.mkdirSync(dir, { recursive: true });
+    }
+    fs.createWriteStream(path).write(buffer);
+    return path;
   }
 
   async uploadS3(buffer, name) {
@@ -44,19 +69,47 @@ export class FileService {
     return res;
   }
 
-  async uploadFile(buffer, name) {
-    const filePath = this.config.get('FILES_PATH');
-    const current_os = this.config.get('CURRENT_OS');    
-    const path = join(filePath, name);   
-    const parts=current_os=='Linux'? path.split('/'):path.split('\\')    
-    parts.pop();
-    const dir=current_os=='Linux'? parts.join('/'):parts.join('\\')      
-    if (!fs.existsSync(dir)) {
-      fs.mkdirSync(dir, { recursive: true });
-    }
-    fs.createWriteStream(path).write(buffer);
-    return path;
+  async uploadGCP(buffer, name) {
+    const storage = this.gcpBucket();
+    const bucketName = this.config.get('GCP_BUCKET');
+    const file = storage.bucket(bucketName).file(name);
+  
+    console.log(buffer, 'buffer111111111111111111111111111111', name, 'name22222222222222222222222222222');
+  
+    const metadata = buffer.metadata || []; // Handle undefined metadata
+  
+    const writeStream = file.createWriteStream({
+      metadata: {
+        contentType: buffer.contentType,
+        metadata: metadata.reduce((obj, item) => Object.assign(obj, item), {}),
+      },
+    });
+  
+    return new Promise<void>((resolve, reject) => {
+      writeStream
+        .on('error', (err) => {
+          Logger.error(err);
+          reject(err);
+        })
+        .on('finish', () => {
+          resolve();
+        })
+        .end(buffer);
+    });
   }
+  
+  
+
+  // async uploadFileToGCS(buffer, name) {
+  //   const storage = this.gcpBucket();
+  //   const bucketName = this.config.get('GCP_BUCKET');
+  //   const bucket = storage.bucket(bucketName);
+  //   console.log('hii');
+  //   const uploadResponse = await bucket.upload(name);
+  //   console.log(uploadResponse, 'hii111');
+  //   const fileLink = `https://storage.cloud.google.com/${bucketName}/${name}`;
+  //   return fileLink;
+  // }
 
   async getResizedImage(buffer, type) {
     const image = await sharp(buffer);
@@ -90,6 +143,7 @@ export class FileService {
     const urls = { disk: {}, bucket: {} };
     const STORAGE = this.config.get('STORAGE');
     const S3_URL = this.config.get('S3_URL');
+    const GCP_URL = this.config.get('GCP_URL');
     const S3_DIRECTORY = this.config.get('S3_DIRECTORY');
     const FILES_SERVE_ROOT = this.config.get('FILES_SERVE_ROOT');
     const FILES_BASE_URL = this.config.get('FILES_BASE_URL');
@@ -101,6 +155,13 @@ export class FileService {
         paths.forEach((f, i) => {
           urls.bucket[['large', 'medium', 'small'][i]] =
             S3_URL + S3_DIRECTORY + f;
+        });
+      }
+      if (STORAGE === 'GCP') {
+        urls.bucket['file'] = GCP_URL + paths[0];
+        paths.forEach((f, i) => {
+          urls.bucket[['large', 'medium', 'small'][i]] =
+            GCP_URL + f;
         });
       }
       if (STORAGE === 'DISK' || STORAGE === 'BOTH') {
@@ -124,9 +185,12 @@ export class FileService {
   };
 
   async saveToDestination(buffer, fileName, id) {
-    const storage = this.config.get('STORAGE');     
+    const storage = this.config.get('STORAGE');
     if (storage === 'S3' || storage === 'BOTH') {
       await this.uploadS3(buffer, `${id}/${fileName}`);
+    }
+    if (storage == 'GCP') {
+      await this.uploadGCP(buffer, `${id}/${fileName}`);
     }
     if (storage === 'DISK' || storage === 'BOTH') {
       this.uploadFile(buffer, `${id}/${fileName}`);

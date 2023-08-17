@@ -1,4 +1,4 @@
-import * as bycrpt from 'bcrypt';
+import * as bcrypt from 'bcrypt';
 import * as url from 'url';
 import { v1 as uuidv1 } from 'uuid';
 import * as path from 'path';
@@ -9,7 +9,7 @@ import * as fs from 'fs';
  * @param factor number
  */
 export const generateSalt = (factor: number): Promise<string> => {
-  return bycrpt.genSalt(factor);
+  return bcrypt.genSalt(factor);
 };
 
 /**
@@ -20,7 +20,7 @@ export const generateSalt = (factor: number): Promise<string> => {
  * password hashing
  */
 export const toHash = async (pass: string): Promise<string> => {
-  return bycrpt.hash(pass, 10);
+  return bcrypt.hash(pass, 10);
 };
 
 /**
@@ -35,7 +35,7 @@ export const checkHash = (
   plain: string,
   encrypted: string,
 ): Promise<boolean> => {
-  return bycrpt.compare(plain, encrypted);
+  return bcrypt.compare(plain, encrypted);
 };
 
 export const uuid = () => {
